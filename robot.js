@@ -3,6 +3,7 @@
 async function main(tank) {
 
   // auxiliary functions
+  //Comentarios
 
   async function fireLeftOrRight(tank) {
     let dir = 0;
