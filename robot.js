@@ -3,14 +3,19 @@
 async function main(tank) {
 
   // auxiliary functions
-  //Comentarios
-
   async function fireLeftOrRight(tank) {
     let dir = 0;
     if (Math.random() > 0.5) {
       dir = 180;
     }
     await tank.shoot(dir, 700);
+  }
+
+  // definicion de otras funciones
+  async function stop(tank) {
+    while (await tank.getSpeed() > 50) {
+      await tank.drive(0, 0);
+    }
   }
 
   // main loop
@@ -30,5 +35,11 @@ async function main(tank) {
     // shoot
     await tank.shoot(90, 700);
     await fireLeftOrRight(tank);
+
+    //Comentarios
+    await tank.getX();
+    await tank.getY();
+    await tank.getDamage();
+    await tank.getSpeed();
   }
 }
