@@ -40,7 +40,6 @@ async function runAway(tank, angleToDrive) {
   }
 }
 
-//Detect and shoot enemies
 async function detectAndShoot(tank, diagonals) {
   let tankInRadar = await check(tank, diagonals)
   if (tankInRadar) {
@@ -62,12 +61,11 @@ async function main(tank) {
     if (newDamage !== lastKnownDamage) {
       await runAway(tank, angleToDrive)
       lastKnownDamage = newDamage
-    }
-    else {
+    } else {
       await tank.drive(angleToDrive, 45)
       await detectAndShoot(tank, diagonals)
       angleToDrive += 25
-      if (angleToDrive > 360) angleToDrive -= 360
+      if (angleToDrive > 360) angleToDrive = 0
     }
     diagonals = !diagonals
   }
