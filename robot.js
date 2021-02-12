@@ -1,8 +1,7 @@
 "use strict";
 // auxiliary functions
 //Check the location of enemies
-async function check(tank, diagonals) {
-  let distance;
+async function check(tank, diagonals, distance) {
   for (var i = diagonals? 45 : 0; i < 360; i = i + 90) {
     console.log("scanning angle: ", i)
     distance = await tank.scan(i, 10);
@@ -12,9 +11,7 @@ async function check(tank, diagonals) {
 }
 
 //avoid walls
-async function avoidWall(tank) {
-  let x = await tank.getX()
-  let y = await tank.getY()
+async function avoidWall(tank, x, y) {
   while (x < 150) {
     await tank.drive(0, 100)
     x = await tank.getX()
@@ -41,31 +38,47 @@ async function runAway(tank, angleToDrive) {
 }
 
 //Detect and shoot enemies
-async function detectAndShoot(tank, diagonals) {
-  let tankInRadar = await check(tank, diagonals)
+async function detectAndShoot(tank, diagonals, tankInRadar, distance, targetFound) {
+  tankInRadar = await check(tank, diagonals, distance)
   if (tankInRadar) {
-    let angle = tankInRadar[0]
-    let distance = tankInRadar[1]
-    await tank.shoot(angle - 5, distance)
-    await tank.shoot(angle + 5, distance)
+    await tank.shoot(tankInRadar[0] - 5, tankInRadar[1])
+    await tank.shoot(tankInRadar[0] + 5, tankInRadar[1])
+    return tankInRadar[0]
+  }
+  else{
+    return false
   }
 }
 
 async function main(tank) {
-  // main loop
+  //variables
   let angleToDrive = 0
   let lastKnownDamage = 0
+  let newDamage = await tank.getDamage()
   let diagonals = false
+  let x
+  let y
+  let tankInRadar
+  let distance
+  let detected
+
+  // main loop
   while (true) {
-    await avoidWall(tank)
-    let newDamage = await tank.getDamage()
+    x = await tank.getX()
+    y = await tank.getY()
+    await avoidWall(tank, x, y)
     if (newDamage !== lastKnownDamage) {
       await runAway(tank, angleToDrive)
       lastKnownDamage = newDamage
     }
     else {
-      await tank.drive(angleToDrive, 45)
-      await detectAndShoot(tank, diagonals)
+      detected = await detectAndShoot(tank, diagonals, tankInRadar, distance)
+      if(detected == false){
+        await tank.drive(angleToDrive, 45)
+      }
+      else{
+        await tank.drive(detected+25, 90)
+      }
       angleToDrive += 25
       if (angleToDrive > 360) angleToDrive -= 360
     }
