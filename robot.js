@@ -1,25 +1,27 @@
 "use strict";
 // auxiliary functions
 //Check the location of enemies
-async function check(tank, diagonals, distance) {
-  let enhancedDistanceRight
-  let enhancedDistanceLeft
+async function check(tank, diagonals, distance, secDistanceRight, secDistanceLeft) {
   for (var i = diagonals? 45 : 0; i < 360; i = i + 90) {
     distance = await tank.scan(i, 10);
     if (distance > 0){
-      enhancedDistanceRight = await tank.scan(i, 5);
-      enhancedDistanceLeft = await tank.scan(i+5, 5);
-      if(enhancedDistanceRight == 0 && enhancedDistanceLeft>0){
+      //first shot
+      await tank.shoot(i,  distance)
+      //try to presume enemies moves
+      secDistanceRight = await tank.scan(i, 5);
+      secDistanceLeft = await tank.scan(i+5, 5);
+      if(secDistanceRight == 0 && secDistanceLeft>0){
         //is going left
-        return [i+5, enhancedDistanceLeft]
+        return [i+5, secDistanceLeft]
       }
-      else if (enhancedDistanceRight > 0 && enhancedDistanceLeft==0)
+      else if (secDistanceRight > 0 && secDistanceLeft==0)
       {
         //is going right
-        return [i+5, enhancedDistanceRight]
+        return [i-5, secDistanceRight]
       }
       else
       {
+        //Not in my scope
         return [i, distance]
       }
     } 
@@ -30,39 +32,33 @@ async function check(tank, diagonals, distance) {
 //avoid walls
 async function avoidWall(tank, x, y) {
   while (x < 150) {
-    await tank.drive(0, 90)
+    await tank.drive(0, 75)
     x = await tank.getX()
-    return 0
   }
   while (x > 1190) {
-    await tank.drive(180, 90)
+    await tank.drive(180, 75)
     x = await tank.getX()
-    return 180
   }
   while (y < 150) {
-    await tank.drive(90, 90)
+    await tank.drive(90, 75)
     y = await tank.getY()
-    return 90
   }
   while (y > 850) {
-    await tank.drive(270, 90)
+    await tank.drive(270, 75)
     y = await tank.getY()
-    return 270
   }
 }
 
 //run away from danger
 async function runAway(tank, angleToDrive) {
-    await tank.drive(angleToDrive + 45, 90)
-    return angleToDrive + 90
+  await tank.drive(angleToDrive + 45, 70)
 }
 
 //Detect and shoot enemies
-async function detectAndShoot(tank, diagonals, tankInRadar, distance, targetFound) {
-  tankInRadar = await check(tank, diagonals, distance)
+async function detectAndShoot(tank, diagonals, tankInRadar, distance, secDistanceRight, secDistanceLeft) {
+  tankInRadar = await check(tank, diagonals, distance, secDistanceRight, secDistanceLeft)
   if (tankInRadar) {
-    await tank.shoot(tankInRadar[0] - 2, tankInRadar[1])
-    await tank.shoot(tankInRadar[0] + 2, tankInRadar[1])
+    await tank.shoot(tankInRadar[0], tankInRadar[1])
     return tankInRadar
   }
   else{
@@ -82,31 +78,33 @@ async function main(tank) {
   let tankInRadar
   let distance
   let detected
+  let secDistanceRight
+  let secDistanceLeft
 
   // main loop
   while (true) {
+    angleToChange = null
     newDamage = await tank.getDamage()
     x = await tank.getX()
     y = await tank.getY()
-    angleToChange = await avoidWall(tank, x, y)
+    await avoidWall(tank, x, y)
+    //Update damage state
     if (newDamage !== lastKnownDamage) {
-      angleToChange = await runAway(tank, angleToDrive)
+      await runAway(tank, angleToDrive)
       lastKnownDamage = newDamage
     }
     else {
-      detected = await detectAndShoot(tank, diagonals, tankInRadar, distance)
+      detected = await detectAndShoot(tank, diagonals, tankInRadar, distance, secDistanceRight, secDistanceLeft)
       if(detected == false){
+        //Mantaining the driving
         await tank.drive(angleToDrive, 45)
       }
-      else if (detected[1] < 100){
-        angleToChange = detected[0]+135
-        await tank.drive(angleToChange, 80)
-      }
       else{
+        //Try to approach but carefully
         angleToChange = detected[0]+25
-        await tank.drive(angleToChange, 80)
+        await tank.drive(angleToChange, 75)
       }
-      if(angleToChange === undefined){
+      if(angleToChange == undefined){
         angleToDrive += 25
       }
       else{
