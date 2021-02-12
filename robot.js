@@ -2,10 +2,27 @@
 // auxiliary functions
 //Check the location of enemies
 async function check(tank, diagonals, distance) {
+  let enhancedDistanceRight
+  let enhancedDistanceLeft
   for (var i = diagonals? 45 : 0; i < 360; i = i + 90) {
-    console.log("scanning angle: ", i)
     distance = await tank.scan(i, 10);
-    if (distance > 0) return [i, distance]
+    if (distance > 0){
+      enhancedDistanceRight = await tank.scan(i, 5);
+      enhancedDistanceLeft = await tank.scan(i+5, 5);
+      if(enhancedDistanceRight == 0 && enhancedDistanceLeft>0){
+        //is going left
+        return [i+5, enhancedDistanceLeft]
+      }
+      else if (enhancedDistanceRight > 0 && enhancedDistanceLeft==0)
+      {
+        //is going right
+        return [i+5, enhancedDistanceRight]
+      }
+      else
+      {
+        return [i, distance]
+      }
+    } 
   }
   return false
 }
@@ -13,37 +30,40 @@ async function check(tank, diagonals, distance) {
 //avoid walls
 async function avoidWall(tank, x, y) {
   while (x < 150) {
-    await tank.drive(0, 100)
+    await tank.drive(0, 90)
     x = await tank.getX()
+    return 0
   }
   while (x > 1190) {
-    await tank.drive(180, 100)
+    await tank.drive(180, 90)
     x = await tank.getX()
+    return 180
   }
   while (y < 150) {
-    await tank.drive(90, 100)
+    await tank.drive(90, 90)
     y = await tank.getY()
+    return 90
   }
   while (y > 850) {
-    await tank.drive(270, 100)
+    await tank.drive(270, 90)
     y = await tank.getY()
+    return 270
   }
 }
 
 //run away from danger
 async function runAway(tank, angleToDrive) {
-  for (let i = 0; i <= 10; i++) {
-    await tank.drive(angleToDrive + 45, 100)
-  }
+    await tank.drive(angleToDrive + 45, 90)
+    return angleToDrive + 90
 }
 
 //Detect and shoot enemies
 async function detectAndShoot(tank, diagonals, tankInRadar, distance, targetFound) {
   tankInRadar = await check(tank, diagonals, distance)
   if (tankInRadar) {
-    await tank.shoot(tankInRadar[0] - 5, tankInRadar[1])
-    await tank.shoot(tankInRadar[0] + 5, tankInRadar[1])
-    return tankInRadar[0]
+    await tank.shoot(tankInRadar[0] - 2, tankInRadar[1])
+    await tank.shoot(tankInRadar[0] + 2, tankInRadar[1])
+    return tankInRadar
   }
   else{
     return false
@@ -54,7 +74,8 @@ async function main(tank) {
   //variables
   let angleToDrive = 0
   let lastKnownDamage = 0
-  let newDamage = await tank.getDamage()
+  let angleToChange = 0
+  let newDamage 
   let diagonals = false
   let x
   let y
@@ -64,11 +85,12 @@ async function main(tank) {
 
   // main loop
   while (true) {
+    newDamage = await tank.getDamage()
     x = await tank.getX()
     y = await tank.getY()
-    await avoidWall(tank, x, y)
+    angleToChange = await avoidWall(tank, x, y)
     if (newDamage !== lastKnownDamage) {
-      await runAway(tank, angleToDrive)
+      angleToChange = await runAway(tank, angleToDrive)
       lastKnownDamage = newDamage
     }
     else {
@@ -76,10 +98,20 @@ async function main(tank) {
       if(detected == false){
         await tank.drive(angleToDrive, 45)
       }
-      else{
-        await tank.drive(detected+25, 90)
+      else if (detected[1] < 100){
+        angleToChange = detected[0]+135
+        await tank.drive(angleToChange, 80)
       }
-      angleToDrive += 25
+      else{
+        angleToChange = detected[0]+25
+        await tank.drive(angleToChange, 80)
+      }
+      if(angleToChange === undefined){
+        angleToDrive += 25
+      }
+      else{
+        angleToDrive = angleToChange + 25
+      }
       if (angleToDrive > 360) angleToDrive -= 360
     }
     diagonals = !diagonals
